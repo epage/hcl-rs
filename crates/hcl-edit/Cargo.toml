@@ -33,7 +33,7 @@ perf = ["hcl-primitives/perf"]
 fnv = "1.0.7"
 hcl-primitives = { version = "0.1.1", path = "../hcl-primitives" }
 vecmap-rs = "0.1.10"
-winnow = "0.4.7"
+winnow = { git = "https://github.com/winnow-rs/winnow", rev = "ba754825678e72e0dfd8a7e8a0c12e6532404913" }
 
 [dev-dependencies]
 indoc = "2.0"

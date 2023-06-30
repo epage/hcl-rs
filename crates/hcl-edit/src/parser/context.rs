@@ -1,7 +1,7 @@
 use super::{
     error::ParseError,
     string::{ident, str_ident},
-    IResult, Input,
+    Input, PResult,
 };
 use crate::{repr::Decorated, Ident};
 use std::fmt;
@@ -46,13 +46,13 @@ pub(super) fn cut_tag<'a>(
     cut_err(tag).context(Context::Expected(Expected::Literal(tag)))
 }
 
-pub(super) fn cut_ident(input: Input) -> IResult<Input, Decorated<Ident>> {
+pub(super) fn cut_ident<'a>(input: &mut Input<'a>) -> PResult<'a, Decorated<Ident>> {
     cut_err(ident)
         .context(Context::Expected(Expected::Description("identifier")))
         .parse_next(input)
 }
 
-pub(super) fn cut_str_ident(input: Input) -> IResult<Input, &str> {
+pub(super) fn cut_str_ident<'a>(input: &mut Input<'a>) -> PResult<'a, &'a str> {
     cut_err(str_ident)
         .context(Context::Expected(Expected::Description("identifier")))
         .parse_next(input)

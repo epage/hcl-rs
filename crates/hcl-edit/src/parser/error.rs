@@ -119,7 +119,7 @@ impl Location {
 }
 
 fn locate_error<'a>(input: &'a [u8], remaining_input: &'a [u8]) -> (&'a [u8], Location) {
-    let offset = input.offset_to(remaining_input);
+    let offset = remaining_input.offset_from(&input);
     let consumed_input = &input[..offset];
 
     // Find the line that includes the subslice:
@@ -142,7 +142,7 @@ fn locate_error<'a>(input: &'a [u8], remaining_input: &'a [u8]) -> (&'a [u8], Lo
     let line = consumed_input.iter().filter(|&&b| b == b'\n').count() + 1;
 
     // The (1-indexed) column number is the offset of the remaining input into that line.
-    let column = line_context.offset_to(remaining_input) + 1;
+    let column = remaining_input.offset_from(&line_context) + 1;
 
     (
         line_context,
