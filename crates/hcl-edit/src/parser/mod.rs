@@ -20,7 +20,7 @@ use winnow::{stream::Located, Parser};
 
 type Input<'a> = Located<&'a [u8]>;
 
-type IResult<I, O, E = ParseError<I>> = winnow::IResult<I, O, E>;
+type PResult<'a, O, E = ParseError<Input<'a>>> = winnow::PResult<O, E>;
 
 /// Parse an input into a [`Body`](crate::structure::Body).
 ///

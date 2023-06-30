@@ -1,7 +1,7 @@
 use super::{
     context::{Context, Expected},
     string::from_utf8_unchecked,
-    IResult, Input,
+    Input, PResult,
 };
 use crate::Number;
 use std::str::FromStr;
@@ -12,7 +12,7 @@ use winnow::{
     Parser,
 };
 
-pub(super) fn number(input: Input) -> IResult<Input, Number> {
+pub(super) fn number<'a>(input: &mut Input<'a>) -> PResult<'a, Number> {
     alt((
         float.verify_map(Number::from_f64),
         integer.map(Number::from),
@@ -20,7 +20,7 @@ pub(super) fn number(input: Input) -> IResult<Input, Number> {
     .parse_next(input)
 }
 
-fn integer(input: Input) -> IResult<Input, u64> {
+fn integer<'a>(input: &mut Input<'a>) -> PResult<'a, u64> {
     digit1
         .try_map(|s: &[u8]| {
             u64::from_str(unsafe { from_utf8_unchecked(s, "`digit1` filters out non-ascii") })
@@ -28,7 +28,7 @@ fn integer(input: Input) -> IResult<Input, u64> {
         .parse_next(input)
 }
 
-fn float(input: Input) -> IResult<Input, f64> {
+fn float<'a>(input: &mut Input<'a>) -> PResult<'a, f64> {
     let fraction = preceded(b'.', digit1);
 
     terminated(digit1, alt((terminated(fraction, opt(exponent)), exponent)))
@@ -41,10 +41,10 @@ fn float(input: Input) -> IResult<Input, f64> {
         .parse_next(input)
 }
 
-fn exponent(input: Input) -> IResult<Input, &[u8]> {
+fn exponent<'a>(input: &mut Input<'a>) -> PResult<'a, &'a [u8]> {
     (
-        one_of("eE"),
-        opt(one_of("+-")),
+        one_of(b"eE"),
+        opt(one_of(b"+-")),
         cut_err(digit1).context(Context::Expected(Expected::Description("digit"))),
     )
         .recognize()

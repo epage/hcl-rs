@@ -8,7 +8,7 @@ use super::{
         template_string_fragment,
     },
     trivia::ws,
-    IResult, Input,
+    Input, PResult,
 };
 use crate::{
     template::{
@@ -25,13 +25,13 @@ use winnow::{
     Parser,
 };
 
-pub(super) fn string_template(input: Input) -> IResult<Input, StringTemplate> {
+pub(super) fn string_template<'a>(input: &mut Input<'a>) -> PResult<'a, StringTemplate> {
     delimited(b'"', elements(build_string(quoted_string_fragment)), b'"')
         .output_into()
         .parse_next(input)
 }
 
-pub(super) fn template(input: Input) -> IResult<Input, Template> {
+pub(super) fn template<'a>(input: &mut Input<'a>) -> PResult<'a, Template> {
     let literal_end = alt((b"${", b"%{"));
     let literal = template_literal(literal_end);
     elements(literal).output_into().parse_next(input)
@@ -40,7 +40,7 @@ pub(super) fn template(input: Input) -> IResult<Input, Template> {
 pub(super) fn heredoc_template<'a>(
     delim: &'a str,
 ) -> impl Parser<Input<'a>, Template, ParseError<Input<'a>>> {
-    move |input: Input<'a>| {
+    move |input: &mut Input<'a>| {
         // We'll need to look for a line ending followed by optional space and the heredoc
         // delimiter.
         //
@@ -105,7 +105,7 @@ where
     )
 }
 
-fn interpolation(input: Input) -> IResult<Input, Interpolation> {
+fn interpolation<'a>(input: &mut Input<'a>) -> PResult<'a, Interpolation> {
     control(b"${", decorated(ws, expr, ws))
         .map(|(expr, strip)| {
             let mut interp = Interpolation::new(expr);
@@ -115,7 +115,7 @@ fn interpolation(input: Input) -> IResult<Input, Interpolation> {
         .parse_next(input)
 }
 
-fn directive(input: Input) -> IResult<Input, Directive> {
+fn directive<'a>(input: &mut Input<'a>) -> PResult<'a, Directive> {
     alt((
         if_directive.map(Directive::If),
         for_directive.map(Directive::For),
@@ -123,7 +123,7 @@ fn directive(input: Input) -> IResult<Input, Directive> {
     .parse_next(input)
 }
 
-fn if_directive(input: Input) -> IResult<Input, IfDirective> {
+fn if_directive<'a>(input: &mut Input<'a>) -> PResult<'a, IfDirective> {
     let if_expr = (
         control(
             b"%{",
@@ -170,7 +170,7 @@ fn if_directive(input: Input) -> IResult<Input, IfDirective> {
         .parse_next(input)
 }
 
-fn for_directive(input: Input) -> IResult<Input, ForDirective> {
+fn for_directive<'a>(input: &mut Input<'a>) -> PResult<'a, ForDirective> {
     let for_expr = (
         control(
             b"%{",
