@@ -158,7 +158,6 @@ fn locate_error<'a>(input: &'a [u8], remaining_input: &'a [u8]) -> (&'a [u8], Lo
 pub(super) struct ParseError<I> {
     input: I,
     context: Vec<Context>,
-    cause: Option<Box<dyn std::error::Error + Send + Sync + 'static>>,
 }
 
 impl<I> ParseError<I> {
@@ -167,20 +166,7 @@ impl<I> ParseError<I> {
         ParseError {
             input,
             context: Vec::new(),
-            cause: None,
         }
-    }
-}
-
-impl<I> PartialEq for ParseError<I>
-where
-    I: PartialEq,
-{
-    fn eq(&self, other: &Self) -> bool {
-        self.input == other.input
-            && self.context == other.context
-            && self.cause.as_ref().map(ToString::to_string)
-                == other.cause.as_ref().map(ToString::to_string)
     }
 }
 
@@ -210,11 +196,12 @@ where
 {
     #[inline]
     fn from_external_error(input: I, _kind: winnow::error::ErrorKind, err: E) -> Self {
-        ParseError {
+        let mut e = ParseError {
             input,
             context: Vec::new(),
-            cause: Some(Box::new(err)),
-        }
+        };
+        e.context.push(Context::Cause(std::sync::Arc::new(err)));
+        e
     }
 }
 
@@ -222,7 +209,7 @@ impl<I> fmt::Display for ParseError<I> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let expression = self.context.iter().find_map(|c| match c {
             Context::Expression(c) => Some(c),
-            Context::Expected(_) => None,
+            _ => None,
         });
 
         let expected = self
@@ -230,7 +217,7 @@ impl<I> fmt::Display for ParseError<I> {
             .iter()
             .filter_map(|c| match c {
                 Context::Expected(c) => Some(c),
-                Context::Expression(_) => None,
+                _ => None,
             })
             .collect::<Vec<_>>();
 
@@ -260,7 +247,11 @@ impl<I> fmt::Display for ParseError<I> {
             }
         }
 
-        if let Some(cause) = &self.cause {
+        let cause = self.context.iter().find_map(|c| match c {
+            Context::Cause(c) => Some(c),
+            _ => None,
+        });
+        if let Some(cause) = cause {
             write!(f, "; {cause}")?;
         }
 

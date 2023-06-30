@@ -7,10 +7,11 @@ use crate::{repr::Decorated, Ident};
 use std::fmt;
 use winnow::{combinator::cut_err, stream::AsChar, Parser};
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug)]
 pub(super) enum Context {
     Expression(&'static str),
     Expected(Expected),
+    Cause(std::sync::Arc<dyn std::error::Error + Send + Sync + 'static>),
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
