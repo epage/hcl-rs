@@ -16,7 +16,7 @@ mod trivia;
 pub use self::error::{Error, Location};
 use self::{error::ParseError, expr::expr, structure::body, template::template};
 use crate::{expr::Expression, structure::Body, template::Template};
-use winnow::{stream::Located, Parser};
+use winnow::{combinator::eof, combinator::terminated, stream::AsBytes, stream::Located, Parser};
 
 type Input<'a> = Located<&'a [u8]>;
 
@@ -55,13 +55,19 @@ pub fn parse_template(input: &str) -> Result<Template, Error> {
     Ok(template)
 }
 
-fn parse_complete<'a, P, O>(input: &'a str, mut parser: P) -> Result<O, Error>
+fn parse_complete<'a, P, O>(input: &'a str, parser: P) -> Result<O, Error>
 where
     P: Parser<Input<'a>, O, ParseError<Input<'a>>>,
 {
-    let input = Input::new(input.as_bytes());
+    let mut stream = Input::new(input.as_bytes());
 
-    parser
-        .parse(input)
-        .map_err(|err| Error::from_parse_error(&input, &err))
+    terminated(parser, eof)
+        .parse_next(&mut stream)
+        .map_err(|err| {
+            Error::from_parse_error(
+                input.as_bytes(),
+                stream.as_bytes(),
+                &err.into_inner().expect("`Incomplete` isn't used"),
+            )
+        })
 }

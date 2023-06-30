@@ -2,7 +2,7 @@ use super::context::Context;
 use std::fmt;
 use winnow::{
     error::{ContextError, FromExternalError},
-    stream::{AsBytes, Offset},
+    stream::Offset,
 };
 
 /// Error type returned when the parser encountered an error.
@@ -12,11 +12,8 @@ pub struct Error {
 }
 
 impl Error {
-    pub(super) fn from_parse_error<I>(input: &I, err: &ParseError<I>) -> Error
-    where
-        I: AsBytes + Offset,
-    {
-        Error::new(ErrorInner::from_parse_error(input, err))
+    pub(super) fn from_parse_error<I>(input: &[u8], err_loc: &[u8], err: &ParseError<I>) -> Error {
+        Error::new(ErrorInner::from_parse_error(input, err_loc, err))
     }
 
     fn new(inner: ErrorInner) -> Error {
@@ -55,11 +52,8 @@ struct ErrorInner {
 }
 
 impl ErrorInner {
-    fn from_parse_error<I>(input: &I, err: &ParseError<I>) -> ErrorInner
-    where
-        I: AsBytes + Offset,
-    {
-        let (line, location) = locate_error(input.as_bytes(), err.input.as_bytes());
+    fn from_parse_error<I>(input: &[u8], err_loc: &[u8], err: &ParseError<I>) -> ErrorInner {
+        let (line, location) = locate_error(input, err_loc);
 
         ErrorInner {
             message: err.to_string(),
@@ -156,18 +150,17 @@ fn locate_error<'a>(input: &'a [u8], remaining_input: &'a [u8]) -> (&'a [u8], Lo
 
 #[derive(Debug)]
 pub(super) struct ParseError<I> {
-    input: I,
+    input: std::marker::PhantomData<I>,
     context: Vec<Context>,
     cause: Option<Box<dyn std::error::Error + Send + Sync + 'static>>,
 }
 
 impl<I> ParseError<I> {
-    #[inline]
-    pub(super) fn new(input: I) -> ParseError<I> {
-        ParseError {
-            input,
-            context: Vec::new(),
-            cause: None,
+    fn new() -> Self {
+        Self {
+            input: Default::default(),
+            context: Default::default(),
+            cause: Default::default(),
         }
     }
 }
@@ -177,8 +170,7 @@ where
     I: PartialEq,
 {
     fn eq(&self, other: &Self) -> bool {
-        self.input == other.input
-            && self.context == other.context
+        self.context == other.context
             && self.cause.as_ref().map(ToString::to_string)
                 == other.cause.as_ref().map(ToString::to_string)
     }
@@ -186,8 +178,8 @@ where
 
 impl<I> winnow::error::ParseError<I> for ParseError<I> {
     #[inline]
-    fn from_error_kind(input: I, _kind: winnow::error::ErrorKind) -> Self {
-        ParseError::new(input)
+    fn from_error_kind(_input: I, _kind: winnow::error::ErrorKind) -> Self {
+        ParseError::new()
     }
 
     #[inline]
@@ -209,9 +201,9 @@ where
     E: std::error::Error + Send + Sync + 'static,
 {
     #[inline]
-    fn from_external_error(input: I, _kind: winnow::error::ErrorKind, err: E) -> Self {
+    fn from_external_error(_input: I, _kind: winnow::error::ErrorKind, err: E) -> Self {
         ParseError {
-            input,
+            input: Default::default(),
             context: Vec::new(),
             cause: Some(Box::new(err)),
         }
